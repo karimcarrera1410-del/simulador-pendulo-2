@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio de Física: Péndulo Simple Exacto vs. Lineal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        lab: {
+                            950: '#06090f',
+                            900: '#0b101b',
+                            850: '#101726',
+                            800: '#162033',
+                            700: '#1f2d47',
+                            accent: '#38bdf8',
+                            real: '#00f0ff',
+                            linear: '#f59e0b',
+                            danger: '#f43f5e'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #06090f;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        /* Custom Range Sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 999px;
+            background: #1f2d47;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #38bdf8;
+            margin-top: -5px;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+            transition: transform 0.1s ease, background-color 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #7dd3fc;
+        }
+        .canvas-grid {
+            background-image: 
+                linear-gradient(to right, rgba(31, 45, 71, 0.25) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(31, 45, 71, 0.25) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+        }
+        .glow-amber {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.15);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-sky-500/30 selection:text-sky-200">
+
+    <!-- Header / Barra Superior -->
+    <header class="border-b border-lab-700/80 bg-lab-900/90 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="4" r="1.5" fill="currentColor"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4L17 17"/>
+                        <circle cx="17" cy="17" r="3" fill="currentColor" fill-opacity="0.3"/>
+                        <path stroke-linecap="round" stroke-dasharray="2 2" stroke-width="1.5" d="M12 4L12 19"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                        Laboratorio de Mecánica Clásica
+                        <span class="hidden sm:inline-block text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">RK4 + Integral Elíptica</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Análisis comparativo: Péndulo No Lineal Exacto vs. Aproximación Armónica Simple</p>
+                </div>
+            </div>
+
+            <!-- Leyenda Global de Modelos -->
+            <div class="flex items-center gap-4 text-xs font-medium bg-lab-950/80 px-3.5 py-2 rounded-xl border border-lab-700/70">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-[#00f0ff] shadow-[0_0_8px_#00f0ff]"></span>
+                    <span class="text-slate-200">Modelo Exacto <span class="font-mono text-cyan-400 hidden md:inline">(θ̈ + g/L·sin θ = 0)</span></span>
+                </div>
+                <div class="h-4 w-px bg-lab-700"></div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full border-2 border-dashed border-[#f59e0b] bg-amber-500/20"></span>
+                    <span class="text-slate-300">Aprox. Lineal <span class="font-mono text-amber-400 hidden md:inline">(θ̈ + g/L·θ = 0)</span></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenedor Principal -->
+    <main class="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
+
+        <!-- COLUMNA IZQUIERDA (3 cols): Controles y Parámetros -->
+        <section class="lg:col-span-3 flex flex-col gap-4">
+            
+            <!-- Panel de Controles de Reproducción -->
+            <div class="bg-lab-900 border border-lab-700/80 rounded-2xl p-4 shadow-xl">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Control de Simulación
+                    </h2>
+                    <span id="sim-status-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">EN EJECUCIÓN</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <button id="btn-play-pause" class="col-span-1 py-2.5 px-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 shadow-lg shadow-sky-500/20">
+                        <svg id="icon-pause" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                        <svg id="icon-play" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
+                        <span id="text-play-pause">Pausar</span>
+                    </button>
+
+                    <button id="btn-reset" class="col-span-1 py-2.5 px-3 rounded-xl bg-lab-800 hover:bg-lab-700 text-slate-200 border border-lab-700 font-medium text-xs flex items-center justify-center gap-1.5 transition active:scale-95">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Reiniciar
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btn-slowmo" class="py-2 px-3 rounded-xl bg-lab-800 hover:bg-lab-700 text-slate-300 border border-lab-700 font-medium text-xs flex items-center justify-center gap-1.5 transition">
+                        <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Lento (0.25x)</span>
+                    </button>
+
+                    <button id="btn-step" class="py-2 px-3 rounded-xl bg-lab-800 hover:bg-lab-700 text-slate-300 border border-lab-700 font-medium text-xs flex items-center justify-center gap-1.5 transition active:scale-95" title="Avanzar un paso de integración (Δt = 0.02s)">
+                        <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+                        <span>Paso (+20ms)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Parámetros Físicos -->
+            <div class="bg-lab-900 border border-lab-700/80 rounded-2xl p-4 shadow-xl flex-1 flex flex-col justify-between gap-4">
+                <div>
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                        Condiciones Iniciales y Sistema
+                    </h2>
+
+                    <!-- Control Ángulo Inicial -->
+                    <div class="mb-5">
+                        <div class="flex justify-between items-baseline mb-1.5">
+                            <label for="slider-angle" class="text-xs font-medium text-slate-300">Ángulo Inicial (<span class="font-mono text-cyan-300">θ₀</span>)</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" id="input-angle" min="0" max="50" step="0.5" value="30" class="w-16 bg-lab-950 border border-lab-700 rounded-lg px-2 py-0.5 text-right font-mono text-sm font-bold text-cyan-400 focus:outline-none focus:border-cyan-400">
+                                <span class="text-xs font-mono text-slate-400">°</span>
+                            </div>
+                        </div>
+                        <input type="range" id="slider-angle" min="0" max="50" step="0.5" value="30" class="w-full">
+                        <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+                            <span>0°</span>
+                            <span class="text-emerald-400/80">15° (Límite lineal)</span>
+                            <span>50°</span>
+                        </div>
+
+                        <!-- Botones Rápidos de Ángulos Clave -->
+                        <div class="mt-3">
+                            <span class="block text-[11px] text-slate-400 mb-1.5">Presets de análisis experimental:</span>
+                            <div class="grid grid-cols-4 gap-1.5">
+                                <button data-angle="5" class="preset-angle-btn py-1.5 rounded-lg bg-lab-800 hover:bg-lab-700 border border-lab-700 text-xs font-mono font-medium text-slate-200 transition">5°</button>
+                                <button data-angle="15" class="preset-angle-btn py-1.5 rounded-lg bg-lab-800 hover:bg-lab-700 border border-lab-700 text-xs font-mono font-medium text-emerald-300 transition">15°</button>
+                                <button data-angle="30" class="preset-angle-btn py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/60 text-xs font-mono font-bold text-cyan-300 transition">30°</button>
+                                <button data-angle="50" class="preset-angle-btn py-1.5 rounded-lg bg-lab-800 hover:bg-lab-700 border border-lab-700 text-xs font-mono font-medium text-amber-300 transition">50°</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Control Longitud -->
+                    <div class="mb-5 pt-3 border-t border-lab-800">
+                        <div class="flex justify-between items-baseline mb-1.5">
+                            <label for="slider-length" class="text-xs font-medium text-slate-300">Longitud de Cuerda (<span class="font-mono text-sky-300">L</span>)</label>
+                            <span id="val-length" class="font-mono text-sm font-semibold text-white">1.50 m</span>
+                        </div>
+                        <input type="range" id="slider-length" min="0.25" max="3.00" step="0.05" value="1.50" class="w-full">
+                        <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+                            <span>0.25 m</span>
+                            <span>1.50 m</span>
+                            <span>3.00 m</span>
+                        </div>
+                    </div>
+
+                    <!-- Control Gravedad -->
+                    <div class="pt-3 border-t border-lab-800">
+                        <div class="flex justify-between items-baseline mb-1.5">
+                            <label for="slider-gravity" class="text-xs font-medium text-slate-300">Gravedad (<span class="font-mono text-sky-300">g</span>)</label>
+                            <span id="val-gravity" class="font-mono text-sm font-semibold text-white">9.81 m/s²</span>
+                        </div>
+                        <input type="range" id="slider-gravity" min="1.62" max="24.79" step="0.01" value="9.81" class="w-full">
+                        <div class="flex justify-between gap-1 mt-2">
+                            <button data-g="1.62" class="preset-g-btn flex-1 py-1 px-1.5 rounded bg-lab-850 hover:bg-lab-800 border border-lab-700/80 text-[10px] font-mono text-slate-400 hover:text-slate-200 transition">Luna (1.62)</button>
+                            <button data-g="9.81" class="preset-g-btn flex-1 py-1 px-1.5 rounded bg-sky-500/15 border border-sky-500/40 text-[10px] font-mono text-sky-300 transition">Tierra (9.81)</button>
+                            <button data-g="24.79" class="preset-g-btn flex-1 py-1 px-1.5 rounded bg-lab-850 hover:bg-lab-800 border border-lab-700/80 text-[10px] font-mono text-slate-400 hover:text-slate-200 transition">Júpiter (24.8)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nota Física Contextual -->
+                <div id="regime-indicator" class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200/90 leading-relaxed">
+                    <div class="font-semibold text-amber-300 mb-0.5 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span id="regime-title">Régimen No Lineal Moderado</span>
+                    </div>
+                    <p id="regime-desc" class="text-[11px] text-slate-300">Para θ₀ > 15°, sin(θ) &lt; θ produce una fuerza restauradora menor, haciendo que el péndulo real oscile más lento que el modelo ideal.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- COLUMNA CENTRAL (5 cols): Lienzo del Péndulo Superpuesto -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            <div class="bg-lab-900 border border-lab-700/80 rounded-2xl p-4 shadow-xl flex-1 flex flex-col">
+                <div class="flex items-center justify-between mb-2">
+                    <div>
+                        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-300">Cámara de Oscilación Superpuesta</h2>
+                        <p class="text-[11px] text-slate-400">Arrastra la masa para fijar el ángulo inicial (0° a 50°)</p>
+                    </div>
+                    <div class="flex items-center gap-3 font-mono text-xs bg-lab-950 px-3 py-1.5 rounded-lg border border-lab-800">
+                        <span class="text-slate-400">t =</span>
+                        <span id="sim-time" class="text-white font-semibold">0.00 s</span>
+                    </div>
+                </div>
+
+                <!-- Canvas Principal -->
+                <div id="pendulum-container" class="relative flex-1 min-h-[360px] sm:min-h-[430px] w-full rounded-xl bg-lab-950 border border-lab-800 canvas-grid overflow-hidden cursor-grab active:cursor-grabbing">
+                    <canvas id="pendulumCanvas" class="block w-full h-full"></canvas>
+                    
+                    <!-- HUD Superpuesto de Ángulos Instantáneos -->
+                    <div class="absolute bottom-3 left-3 right-3 flex flex-wrap justify-between gap-2 pointer-events-none">
+                        <div class="bg-lab-900/90 backdrop-blur border border-cyan-500/30 rounded-lg px-2.5 py-1.5 text-[11px] font-mono">
+                            <span class="text-slate-400">θ_real:</span>
+                            <span id="hud-theta-real" class="text-cyan-400 font-bold ml-1">+30.00°</span>
+                        </div>
+                        <div class="bg-lab-900/90 backdrop-blur border border-amber-500/30 rounded-lg px-2.5 py-1.5 text-[11px] font-mono">
+                            <span class="text-slate-400">θ_lineal:</span>
+                            <span id="hud-theta-linear" class="text-amber-400 font-bold ml-1">+30.00°</span>
+                        </div>
+                        <div class="bg-lab-900/90 backdrop-blur border border-rose-500/30 rounded-lg px-2.5 py-1.5 text-[11px] font-mono">
+                            <span class="text-slate-400">Δθ:</span>
+                            <span id="hud-delta-theta" class="text-rose-400 font-bold ml-1">0.00°</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Opciones visuales rápidas -->
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                    <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox" id="chk-trails" checked class="rounded bg-lab-800 border-lab-600 text-cyan-500 focus:ring-0">
+                        <span>Mostrar estelas de trayectoria</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox" id="chk-vectors" checked class="rounded bg-lab-800 border-lab-600 text-cyan-500 focus:ring-0">
+                        <span>Vectores de velocidad tangencial</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!-- COLUMNA DERECHA (4 cols): Telemetría y Gráficas en Tiempo Real -->
+        <section class="lg:col-span-4 flex flex-col gap-4">
+            
+            <!-- Panel de Telemetría Física -->
+            <div class="bg-lab-900 border border-lab-700/80 rounded-2xl p-4 shadow-xl">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    Telemetría y Análisis de Período
+                </h2>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <!-- Período Teórico Lineal -->
+                    <div class="bg-lab-950 border border-lab-800 rounded-xl p-3">
+                        <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                            <span>Período Lineal (T₀)</span>
+                            <span class="font-mono text-[10px] text-amber-400/80">2π√(L/g)</span>
+                        </div>
+                        <div id="metric-t0" class="text-lg sm:text-xl font-mono font-bold text-amber-400 mt-1">2.4569 s</div>
+                    </div>
+
+                    <!-- Período Real Exacto -->
+                    <div class="bg-lab-950 border border-lab-800 rounded-xl p-3">
+                        <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                            <span>Período Exacto (T)</span>
+                            <span class="font-mono text-[10px] text-cyan-400/80">4√(L/g)K(k)</span>
+                        </div>
+                        <div id="metric-t-exact" class="text-lg sm:text-xl font-mono font-bold text-cyan-400 mt-1">2.5003 s</div>
+                    </div>
+
+                    <!-- Error Relativo en Período -->
+                    <div class="bg-lab-950 border border-lab-800 rounded-xl p-3">
+                        <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                            <span>Error Relativo (ε_T)</span>
+                            <span class="font-mono text-[10px] text-slate-500">|T - T₀|/T</span>
+                        </div>
+                        <div class="flex items-baseline gap-2 mt-1">
+                            <span id="metric-error" class="text-lg sm:text-xl font-mono font-bold text-rose-400">1.737 %</span>
+                            <span id="metric-sin-diff" class="text-[10px] font-mono text-slate-400" title="Diferencia relativa entre θ₀ y sin(θ₀)">(sin: -4.51%)</span>
+                        </div>
+                    </div>
+
+                    <!-- Desfase Acumulado -->
+                    <div class="bg-lab-950 border border-lab-800 rounded-xl p-3">
+                        <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                            <span>Desfase Acumulado</span>
+                            <span class="font-mono text-[10px] text-slate-500">Δφ(t)</span>
+                        </div>
+                        <div class="flex items-baseline gap-2 mt-1">
+                            <span id="metric-phase-lag" class="text-lg sm:text-xl font-mono font-bold text-purple-400">0.0°</span>
+                            <span id="metric-cycles" class="text-[10px] font-mono text-slate-400">(0.0 ciclos)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfica 1: Ángulo vs Tiempo θ(t) -->
+            <div class="bg-lab-900 border border-lab-700/80 rounded-2xl p-4 shadow-xl flex-1 flex flex-col">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-semibold text-slate-300">Evolución Temporal: Ángulo θ(t)</h3>
+                    <span class="text-[10px] font-mono text-slate-400">Ventana: 12 s</span>
+                </div>
+                <div class="relative flex-1 min-h-[145px] w-full rounded-xl bg-lab-950 border border-lab-800 overflow-hidden">
+                    <canvas id="timeChartCanvas" class="block w-full h-full"></canvas>
+                </div>
+            </div>
+
+            <!-- Gráfica 2: Diagrama de Fase (θ, dθ/dt) -->
+            <div class="bg-lab-900 border border-lab-700/80 rounded-2xl p-4 shadow-xl flex-1 flex flex-col">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-semibold text-slate-300">Espacio de Fase: (θ, ω = dθ/dt)</h3>
+                    <span class="text-[10px] font-mono text-slate-400">Órbita Conservativa</span>
+                </div>
+                <div class="relative flex-1 min-h-[145px] w-full rounded-xl bg-lab-950 border border-lab-800 overflow-hidden">
+                    <canvas id="phaseChartCanvas" class="block w-full h-full"></canvas>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+        /**
+         * SIMULADOR DE PÉNDULO SIMPLE: MODELO EXACTO (RK4) VS. APROXIMACIÓN LINEAL
+         * Arquitectura física rigurosa:
+         * - Ecuación Exacta: d²θ/dt² + (g/L) * sin(θ) = 0
+         * - Ecuación Lineal: d²θ/dt² + (g/L) * θ = 0
+         * - Integración numérica: Runge-Kutta de 4to orden (RK4) con sub-pasos fijos (dt_sub = 0.002s)
+         *   para garantizar conservación de energía mecánica a largo plazo sin deriva numérica.
+         * - Período Exacto: T = 4 * sqrt(L/g) * K(sin(θ₀/2)), donde K(k) es la integral elíptica
+         *   completa de primera especie evaluada mediante la Media Aritmético-Geométrica (AGM) de Gauss.
+         */
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONSTANTES Y COLORES ---
+            const DEG2RAD = Math.PI / 180;
+            const RAD2DEG = 180 / Math.PI;
+            const COLOR_REAL = '#00f0ff';
+            const COLOR_LINEAR = '#f59e0b';
+
+            // --- ESTADO DE LA SIMULACIÓN ---
+            const state = {
+                theta0Deg: 30.0,     // Ángulo inicial en grados [0, 50]
+                L: 1.50,             // Longitud en metros [0.25, 3.00]
+                g: 9.81,             // Gravedad en m/s² [1.62, 24.79]
+                
+                // Variables dinámicas Modelo Exacto (radianes y rad/s)
+                thetaReal: 30.0 * DEG2RAD,
+                omegaReal: 0.0,
+                
+                // Variables dinámicas Modelo Lineal (radianes y rad/s)
+                thetaLin: 30.0 * DEG2RAD,
+                omegaLin: 0.0,
+                
+                // Tiempo y control
+                time: 0.0,
+                isRunning: true,
+                timeScale: 1.0,      // 1.0 normal, 0.25 cámara lenta
+                isDragging: false,
+                
+                // Historial para gráficas y estelas
+                history: [],         // { t, thR, omR, thL, omL }
+                maxHistoryTime: 12.0,
+                trailReal: [],
+                trailLin: [],
+                maxTrailPoints: 45,
+
+                // Opciones visuales
+                showTrails: true,
+                showVectors: true
+            };
+
+            // --- REFERENCIAS AL DOM ---
+            const pendulumCanvas = document.getElementById('pendulumCanvas');
+            const pCtx = pendulumCanvas.getContext('2d');
+            const timeCanvas = document.getElementById('timeChartCanvas');
+            const tCtx = timeCanvas.getContext('2d');
+            const phaseCanvas = document.getElementById('phaseChartCanvas');
+            const phCtx = phaseCanvas.getContext('2d');
+
+            const sliderAngle = document.getElementById('slider-angle');
+            const inputAngle = document.getElementById('input-angle');
+            const sliderLength = document.getElementById('slider-length');
+            const valLength = document.getElementById('val-length');
+            const sliderGravity = document.getElementById('slider-gravity');
+            const valGravity = document.getElementById('val-gravity');
+
+            const btnPlayPause = document.getElementById('btn-play-pause');
+            const textPlayPause = document.getElementById('text-play-pause');
+            const iconPlay = document.getElementById('icon-play');
+            const iconPause = document.getElementById('icon-pause');
+            const btnReset = document.getElementById('btn-reset');
+            const btnSlowmo = document.getElementById('btn-slowmo');
+            const btnStep = document.getElementById('btn-step');
+            const simStatusBadge = document.getElementById('sim-status-badge');
+
+            // --- CÁLCULOS FÍSICOS EXACTOS ---
+
+            /**
+             * Calcula la Integral Elíptica Completa de Primera Especie K(k)
+             * mediante el método de la Media Aritmético-Geométrica (AGM):
+             * K(k) = π / (2 * AGM(1, sqrt(1 - k²)))
+             */
+            function completeEllipticIntegralK(k) {
+                if (k >= 1) return Infinity;
+                if (k <= 0) return Math.PI / 2;
+                let a = 1.0;
+                let b = Math.sqrt(1.0 - k * k);
+                // Convergencia cuadrática en ~5-6 iteraciones a precisión de máquina
+                for (let i = 0; i < 15; i++) {
+                    const aNext = 0.5 * (a + b);
+                    const bNext = Math.sqrt(a * b);
+                    if (Math.abs(a - b) < 1e-14) break;
+                    a = aNext;
+                    b = bNext;
+                }
+                return Math.PI / (2.0 * a);
+            }
+
+            /**
+             * Calcula los períodos teóricos y errores relativos
+             */
+            function computePhysicsMetrics() {
+                const T0 = 2.0 * Math.PI * Math.sqrt(state.L / state.g);
+                const theta0Rad = Math.abs(state.theta0Deg) * DEG2RAD;
+                const k = Math.sin(theta0Rad / 2.0);
+                const K_k = completeEllipticIntegralK(k);
+                const T_exact = 4.0 * Math.sqrt(state.L / state.g) * K_k;
+
+                const relErrorPct = theta0Rad > 1e-6 ? ((T_exact - T0) / T_exact) * 100.0 : 0.0;
+                const sinDiffPct = theta0Rad > 1e-6 ? ((Math.sin(theta0Rad) - theta0Rad) / theta0Rad) * 100.0 : 0.0;
+
+                return { T0, T_exact, relErrorPct, sinDiffPct };
+            }
+
+            /**
+             * Paso de integración Runge-Kutta de 4to Orden (RK4) para ambos sistemas
+             */
+            function stepRK4(dt) {
+                const gOverL = state.g / state.L;
+
+                // 1. Sistema No Lineal Exacto: dθ/dt = ω, dω/dt = -(g/L)*sin(θ)
+                const fReal = (th, om) => ({ dth: om, dom: -gOverL * Math.sin(th) });
+
+                const k1R = fReal(state.thetaReal, state.omegaReal);
+                const k2R = fReal(state.thetaReal + 0.5 * dt * k1R.dth, state.omegaReal + 0.5 * dt * k1R.dom);
+                const k3R = fReal(state.thetaReal + 0.5 * dt * k2R.dth, state.omegaReal + 0.5 * dt * k2R.dom);
+                const k4R = fReal(state.thetaReal + dt * k3R.dth, state.omegaReal + dt * k3R.dom);
+
+                state.thetaReal += (dt / 6.0) * (k1R.dth + 2 * k2R.dth + 2 * k3R.dth + k4R.dth);
+                state.omegaReal += (dt / 6.0) * (k1R.dom + 2 * k2R.dom + 2 * k3R.dom + k4R.dom);
+
+                // 2. Sistema Lineal (Aproximación ángulos pequeños): dθ/dt = ω, dω/dt = -(g/L)*θ
+                const fLin = (th, om) => ({ dth: om, dom: -gOverL * th });
+
+                const k1L = fLin(state.thetaLin, state.omegaLin);
+                const k2L = fLin(state.thetaLin + 0.5 * dt * k1L.dth, state.omegaLin + 0.5 * dt * k1L.dom);
+                const k3L = fLin(state.thetaLin + 0.5 * dt * k2L.dth, state.omegaLin + 0.5 * dt * k2L.dom);
+                const k4L = fLin(state.thetaLin + dt * k3L.dth, state.omegaLin + dt * k3L.dom);
+
+                state.thetaLin += (dt / 6.0) * (k1L.dth + 2 * k2L.dth + 2 * k3L.dth + k4L.dth);
+                state.omegaLin += (dt / 6.0) * (k1L.dom + 2 * k2L.dom + 2 * k3L.dom + k4L.dom);
+
+                state.time += dt;
+            }
+
+            /**
+             * Avanza la física un intervalo deltaT subdividido en pasos pequeños para máxima precisión
+             */
+            function advancePhysics(deltaT) {
+                const subStep = 0.002; // 2 ms por paso RK4
+                const steps = Math.max(1, Math.round(deltaT / subStep));
+                const actualDt = deltaT / steps;
+
+                for (let i = 0; i < steps; i++) {
+                    stepRK4(actualDt);
+                }
+
+                // Registrar punto en historial
+                state.history.push({
+                    t: state.time,
+                    thR: state.thetaReal,
+                    omR: state.omegaReal,
+                    thL: state.thetaLin,
+                    omL: state.omegaLin
+                });
+
+                // Mantener ventana de tiempo en el historial (con margen para el diagrama de fase)
+                while (state.history.length > 2 && (state.time - state.history[0].t) > state.maxHistoryTime) {
+                    state.history.shift();
+                }
+
+                // Registrar estelas espaciales
+                state.trailReal.push(state.thetaReal);
+                if (state.trailReal.length > state.maxTrailPoints) state.trailReal.shift();
+
+                state.trailLin.push(state.thetaLin);
+                if (state.trailLin.length > state.maxTrailPoints) state.trailLin.shift();
+            }
+
+            /**
+             * Reinicia el estado dinámico a las condiciones iniciales actuales
+             */
+            function resetSimulation() {
+                const rad = state.theta0Deg * DEG2RAD;
+                state.thetaReal = rad;
+                state.omegaReal = 0.0;
+                state.thetaLin = rad;
+                state.omegaLin = 0.0;
+                state.time = 0.0;
+                state.history = [{
+                    t: 0,
+                    thR: rad,
+                    omR: 0,
+                    thL: rad,
+                    omL: 0
+                }];
+                state.trailReal = [rad];
+                state.trailLin = [rad];
+                updateStaticTelemetry();
+                updateLiveTelemetry();
+                renderAll();
+            }
+
+            // --- ACTUALIZACIÓN DE INTERFAZ Y TELEMETRÍA ---
+
+            function updateStaticTelemetry() {
+                const { T0, T_exact, relErrorPct, sinDiffPct } = computePhysicsMetrics();
+                document.getElementById('metric-t0').textContent = `${T0.toFixed(4)} s`;
+                document.getElementById('metric-t-exact').textContent = `${T_exact.toFixed(4)} s`;
+                document.getElementById('metric-error').textContent = `${relErrorPct.toFixed(3)} %`;
+                document.getElementById('metric-sin-diff').textContent = `(sin: ${sinDiffPct.toFixed(2)}%)`;
+
+                // Actualizar indicador de régimen físico
+                const box = document.getElementById('regime-indicator');
+                const title = document.getElementById('regime-title');
+                const desc = document.getElementById('regime-desc');
+                const absDeg = Math.abs(state.theta0Deg);
+
+                if (absDeg <= 15) {
+                    box.className = 'p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-200/90 leading-relaxed transition-colors';
+                    title.className = 'font-semibold text-emerald-300 mb-0.5 flex items-center gap-1.5';
+                    title.textContent = 'Régimen Lineal Válido (θ₀ ≤ 15°)';
+                    desc.textContent = `Con θ₀ = ${absDeg.toFixed(1)}°, sin(θ) ≈ θ con menos del 1.2% de desviación. Ambos péndulos oscilan prácticamente en fase (isocronismo).`;
+                } else if (absDeg <= 35) {
+                    box.className = 'p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200/90 leading-relaxed transition-colors';
+                    title.className = 'font-semibold text-amber-300 mb-0.5 flex items-center gap-1.5';
+                    title.textContent = 'Ruptura del Isocronismo (15° < θ₀ ≤ 35°)';
+                    desc.textContent = `Para ${absDeg.toFixed(1)}°, sin(θ) < θ reduce la aceleración angular. El péndulo real se retrasa progresivamente respecto al fantasma lineal.`;
+                } else {
+                    box.className = 'p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-200/90 leading-relaxed transition-colors';
+                    title.className = 'font-semibold text-rose-300 mb-0.5 flex items-center gap-1.5';
+                    title.textContent = 'Régimen Fuertemente No Lineal (θ₀ > 35°)';
+                    desc.textContent = `A ${absDeg.toFixed(1)}°, el error en el período supera el ${relErrorPct.toFixed(1)}%. Tras pocos ciclos, ambos péndulos llegan a estar en oposición de fase (180°).`;
+                }
+
+                // Resaltar botón preset activo
+                document.querySelectorAll('.preset-angle-btn').forEach(btn => {
+                    const val = parseFloat(btn.dataset.angle);
+                    if (Math.abs(val - state.theta0Deg) < 0.01) {
+                        btn.className = 'preset-angle-btn py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400/70 text-xs font-mono font-bold text-cyan-300 transition shadow-[0_0_10px_rgba(0,240,255,0.15)]';
+                    } else {
+                        btn.className = 'preset-angle-btn py-1.5 rounded-lg bg-lab-800 hover:bg-lab-700 border border-lab-700 text-xs font-mono font-medium text-slate-300 transition';
+                    }
+                });
+            }
+
+            function updateLiveTelemetry() {
+                const thRDeg = state.thetaReal * RAD2DEG;
+                const thLDeg = state.thetaLin * RAD2DEG;
+                const deltaDeg = Math.abs(thRDeg - thLDeg);
+
+                document.getElementById('sim-time').textContent = `${state.time.toFixed(2)} s`;
+                document.getElementById('hud-theta-real').textContent = `${thRDeg >= 0 ? '+' : ''}${thRDeg.toFixed(2)}°`;
+                document.getElementById('hud-theta-linear').textContent = `${thLDeg >= 0 ? '+' : ''}${thLDeg.toFixed(2)}°`;
+                document.getElementById('hud-delta-theta').textContent = `${deltaDeg.toFixed(2)}°`;
+
+                // Calcular desfase acumulado teórico entre frecuencias angulares: Δφ = (ω₀ - ω_exact) * t
+                const { T0, T_exact } = computePhysicsMetrics();
+                const omega0 = (2 * Math.PI) / T0;
+                const omegaExact = (2 * Math.PI) / T_exact;
+                const phaseLagDeg = ((omega0 - omegaExact) * state.time) * RAD2DEG;
+                const cycles = state.time / T_exact;
+
+                document.getElementById('metric-phase-lag').textContent = `${phaseLagDeg.toFixed(1)}°`;
+                document.getElementById('metric-cycles').textContent = `(${cycles.toFixed(1)} ciclos)`;
+            }
+
+            function syncPlayPauseUI() {
+                if (state.isRunning) {
+                    textPlayPause.textContent = 'Pausar';
+                    iconPause.classList.remove('hidden');
+                    iconPlay.classList.add('hidden');
+                    simStatusBadge.textContent = state.timeScale < 1 ? 'CÁMARA LENTA (0.25x)' : 'EN EJECUCIÓN';
+                    simStatusBadge.className = state.timeScale < 1 
+                        ? 'text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                        : 'text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+                } else {
+                    textPlayPause.textContent = 'Reanudar';
+                    iconPause.classList.add('hidden');
+                    iconPlay.classList.remove('hidden');
+                    simStatusBadge.textContent = 'PAUSADO';
+                    simStatusBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-slate-700/60 text-slate-300 border border-slate-600';
+                }
+            }
+
+            // --- GESTIÓN DE TAMAÑO RESPONSIVO DE CANVASES ---
+            function resizeCanvases() {
+                const dpr = window.devicePixelRatio || 1;
+                [pendulumCanvas, timeCanvas, phaseCanvas].forEach(canvas => {
+                    const rect = canvas.parentElement.getBoundingClientRect();
+                    canvas.width = Math.max(10, Math.floor(rect.width * dpr));
+                    canvas.height = Math.max(10, Math.floor(rect.height * dpr));
+                    const ctx = canvas.getContext('2d');
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                });
+                renderAll();
+            }
+
+            window.addEventListener('resize', resizeCanvases);
+
+            // --- RENDERIZADO VISUAL ---
+
+            function getPendulumGeometry(width, height) {
+                const pivotX = width * 0.5;
+                const pivotY = Math.max(42, height * 0.12);
+                const maxAvailHeight = height - pivotY - 58;
+                // Escalar longitud visual suavemente entre L=0.25m y L=3.0m
+                const minLenPx = Math.min(110, maxAvailHeight * 0.42);
+                const maxLenPx = Math.max(minLenPx + 40, maxAvailHeight * 0.94);
+                const normL = (state.L - 0.25) / (3.0 - 0.25);
+                const rodLengthPx = minLenPx + normL * (maxLenPx - minLenPx);
+                return { pivotX, pivotY, rodLengthPx };
+            }
+
+            function renderPendulum() {
+                const rect = pendulumCanvas.parentElement.getBoundingClientRect();
+                const w = rect.width;
+                const h = rect.height;
+                pCtx.clearRect(0, 0, w, h);
+
+                const { pivotX, pivotY, rodLengthPx } = getPendulumGeometry(w, h);
+
+                // 1. Transportador / Escala angular de referencia (-50° a +50°)
+                const arcRadius = Math.min(rodLengthPx * 0.85, 190);
+                pCtx.save();
+                pCtx.beginPath();
+                pCtx.arc(pivotX, pivotY, arcRadius, Math.PI / 2 - 55 * DEG2RAD, Math.PI / 2 + 55 * DEG2RAD);
+                pCtx.strokeStyle = 'rgba(148, 163, 184, 0.16)';
+                pCtx.lineWidth = 1.5;
+                pCtx.stroke();
+
+                // Marcas cada 5° y etiquetas cada 15° / 50°
+                for (let deg = -50; deg <= 50; deg += 5) {
+                    const rad = deg * DEG2RAD;
+                    const isMajor = (deg % 15 === 0) || Math.abs(deg) === 50;
+                    const innerR = arcRadius - (isMajor ? 8 : 4);
+                    const outerR = arcRadius + (isMajor ? 4 : 0);
+
+                    const x1 = pivotX + innerR * Math.sin(rad);
+                    const y1 = pivotY + innerR * Math.cos(rad);
+                    const x2 = pivotX + outerR * Math.sin(rad);
+                    const y2 = pivotY + outerR * Math.cos(rad);
+
+                    pCtx.beginPath();
+                    pCtx.moveTo(x1, y1);
+                    pCtx.lineTo(x2, y2);
+                    pCtx.strokeStyle = Math.abs(deg) === 15 ? 'rgba(52, 211, 153, 0.45)' : (isMajor ? 'rgba(148, 163, 184, 0.4)' : 'rgba(148, 163, 184, 0.18)');
+                    pCtx.lineWidth = isMajor ? 1.5 : 1;
+                    pCtx.stroke();
+
+                    if (isMajor) {
+                        const labelR = arcRadius + 16;
+                        const lx = pivotX + labelR * Math.sin(rad);
+                        const ly = pivotY + labelR * Math.cos(rad);
+                        pCtx.fillStyle = Math.abs(deg) === 15 ? '#34d399' : '#64748b';
+                        pCtx.font = '10px "JetBrains Mono", monospace';
+                        pCtx.textAlign = 'center';
+                        pCtx.textBaseline = 'middle';
+                        pCtx.fillText(`${deg}°`, lx, ly);
+                    }
+                }
+
+                // Línea vertical de equilibrio (θ = 0°)
+                pCtx.beginPath();
+                pCtx.setLineDash([4, 4]);
+                pCtx.moveTo(pivotX, pivotY);
+                pCtx.lineTo(pivotX, pivotY + rodLengthPx + 24);
+                pCtx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+                pCtx.lineWidth = 1;
+                pCtx.stroke();
+                pCtx.setLineDash([]);
+                pCtx.restore();
+
+                // 2. Arco de desfase angular entre ambos péndulos
+                if (Math.abs(state.thetaReal - state.thetaLin) > 0.005) {
+                    const a1 = Math.PI / 2 - state.thetaReal;
+                    const a2 = Math.PI / 2 - state.thetaLin;
+                    pCtx.save();
+                    pCtx.beginPath();
+                    pCtx.moveTo(pivotX, pivotY);
+                    pCtx.arc(pivotX, pivotY, rodLengthPx * 0.55, Math.min(a1, a2), Math.max(a1, a2));
+                    pCtx.closePath();
+                    pCtx.fillStyle = 'rgba(244, 63, 94, 0.14)';
+                    pCtx.fill();
+                    pCtx.restore();
+                }
+
+                // 3. Estelas de movimiento
+                if (state.showTrails && state.trailLin.length > 1) {
+                    // Estela Lineal
+                    for (let i = 1; i < state.trailLin.length; i++) {
+                        const alpha = (i / state.trailLin.length) * 0.35;
+                        const th1 = state.trailLin[i - 1];
+                        const th2 = state.trailLin[i];
+                        pCtx.beginPath();
+                        pCtx.moveTo(pivotX + rodLengthPx * Math.sin(th1), pivotY + rodLengthPx * Math.cos(th1));
+                        pCtx.lineTo(pivotX + rodLengthPx * Math.sin(th2), pivotY + rodLengthPx * Math.cos(th2));
+                        pCtx.strokeStyle = `rgba(245, 158, 11, ${alpha})`;
+                        pCtx.lineWidth = 2;
+                        pCtx.stroke();
+                    }
+                    // Estela Real
+                    for (let i = 1; i < state.trailReal.length; i++) {
+                        const alpha = (i / state.trailReal.length) * 0.5;
+                        const th1 = state.trailReal[i - 1];
+                        const th2 = state.trailReal[i];
+                        pCtx.beginPath();
+                        pCtx.moveTo(pivotX + rodLengthPx * Math.sin(th1), pivotY + rodLengthPx * Math.cos(th1));
+                        pCtx.lineTo(pivotX + rodLengthPx * Math.sin(th2), pivotY + rodLengthPx * Math.cos(th2));
+                        pCtx.strokeStyle = `rgba(0, 240, 255, ${alpha})`;
+                        pCtx.lineWidth = 2.5;
+                        pCtx.stroke();
+                    }
+                }
+
+                // Coordenadas de las masas
+                const bobLinX = pivotX + rodLengthPx * Math.sin(state.thetaLin);
+                const bobLinY = pivotY + rodLengthPx * Math.cos(state.thetaLin);
+
+                const bobRealX = pivotX + rodLengthPx * Math.sin(state.thetaReal);
+                const bobRealY = pivotY + rodLengthPx * Math.cos(state.thetaReal);
+
+                // 4. PÉNDULO FANTASMA (APROXIMACIÓN LINEAL)
+                pCtx.save();
+                pCtx.beginPath();
+                pCtx.setLineDash([6, 5]);
+                pCtx.moveTo(pivotX, pivotY);
+                pCtx.lineTo(bobLinX, bobLinY);
+                pCtx.strokeStyle = 'rgba(245, 158, 11, 0.75)';
+                pCtx.lineWidth = 2;
+                pCtx.stroke();
+                pCtx.setLineDash([]);
+
+                // Masa fantasma
+                pCtx.beginPath();
+                pCtx.arc(bobLinX, bobLinY, 15, 0, Math.PI * 2);
+                pCtx.fillStyle = 'rgba(245, 158, 11, 0.16)';
+                pCtx.fill();
+                pCtx.lineWidth = 2;
+                pCtx.setLineDash([4, 3]);
+                pCtx.strokeStyle = COLOR_LINEAR;
+                pCtx.stroke();
+                pCtx.setLineDash([]);
+                pCtx.restore();
+
+                // 5. PÉNDULO REAL (MODELO EXACTO NO LINEAL)
+                pCtx.save();
+                // Cuerda sólida
+                pCtx.beginPath();
+                pCtx.moveTo(pivotX, pivotY);
+                pCtx.lineTo(bobRealX, bobRealY);
+                pCtx.strokeStyle = 'rgba(226, 232, 240, 0.9)';
+                pCtx.lineWidth = 2.5;
+                pCtx.stroke();
+
+                // Halo luminoso de la masa real
+                const grad = pCtx.createRadialGradient(bobRealX - 4, bobRealY - 4, 2, bobRealX, bobRealY, 18);
+                grad.addColorStop(0, '#a5f3fc');
+                grad.addColorStop(0.45, '#00f0ff');
+                grad.addColorStop(1, '#0284c7');
+
+                pCtx.beginPath();
+                pCtx.arc(bobRealX, bobRealY, 15, 0, Math.PI * 2);
+                pCtx.shadowColor = 'rgba(0, 240, 255, 0.6)';
+                pCtx.shadowBlur = 16;
+                pCtx.fillStyle = grad;
+                pCtx.fill();
+                pCtx.shadowBlur = 0;
+                pCtx.lineWidth = 1.5;
+                pCtx.strokeStyle = '#ffffff';
+                pCtx.stroke();
+                pCtx.restore();
+
+                // 6. Vectores de velocidad tangencial v = L * ω
+                if (state.showVectors) {
+                    drawVelocityVector(pCtx, bobLinX, bobLinY, state.thetaLin, state.omegaLin, COLOR_LINEAR);
+                    drawVelocityVector(pCtx, bobRealX, bobRealY, state.thetaReal, state.omegaReal, COLOR_REAL);
+                }
+
+                // 7. Soporte / Pivote superior
+                pCtx.save();
+                pCtx.fillStyle = '#1e293b';
+                pCtx.strokeStyle = '#475569';
+                pCtx.lineWidth = 1.5;
+                pCtx.beginPath();
+                pCtx.roundRect(pivotX - 28, pivotY - 10, 56, 10, 4);
+                pCtx.fill();
+                pCtx.stroke();
+
+                pCtx.beginPath();
+                pCtx.arc(pivotX, pivotY, 5, 0, Math.PI * 2);
+                pCtx.fillStyle = '#e2e8f0';
+                pCtx.fill();
+                pCtx.restore();
+            }
+
+            function drawVelocityVector(ctx, x, y, theta, omega, color) {
+                const vTangential = state.L * omega;
+                const scale = 18; // px por (m/s)
+                const len = vTangential * scale;
+                if (Math.abs(len) < 4) return;
+
+                // Dirección tangencial unitaria: (cos θ, -sin θ)
+                const tx = Math.cos(theta);
+                const ty = -Math.sin(theta);
+
+                const endX = x + tx * len;
+                const endY = y + ty * len;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Punta de flecha
+                const angle = Math.atan2(endY - y, endX - x);
+                const headLen = 7;
+                ctx.beginPath();
+                ctx.moveTo(endX, endY);
+                ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI / 6), endY - headLen * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI / 6), endY - headLen * Math.sin(angle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            /**
+             * Gráfica 1: Ángulo vs Tiempo θ(t)
+             */
+            function renderTimeChart() {
+                const rect = timeCanvas.parentElement.getBoundingClientRect();
+                const w = rect.width;
+                const h = rect.height;
+                tCtx.clearRect(0, 0, w, h);
+
+                const padL = 36, padR = 12, padT = 14, padB = 20;
+                const plotW = w - padL - padR;
+                const plotH = h - padT - padB;
+                const midY = padT + plotH * 0.5;
+
+                // Ejes y cuadrícula
+                tCtx.strokeStyle = 'rgba(51, 65, 85, 0.5)';
+                tCtx.lineWidth = 1;
+                tCtx.beginPath();
+                tCtx.moveTo(padL, midY);
+                tCtx.lineTo(w - padR, midY);
+                tCtx.moveTo(padL, padT);
+                tCtx.lineTo(padL, h - padB);
+                tCtx.stroke();
+
+                const maxDeg = Math.max(10, Math.ceil(Math.abs(state.theta0Deg) / 10) * 10);
+
+                // Etiquetas eje Y
+                tCtx.fillStyle = '#64748b';
+                tCtx.font = '10px "JetBrains Mono", monospace';
+                tCtx.textAlign = 'right';
+                tCtx.textBaseline = 'middle';
+                tCtx.fillText(`+${maxDeg}°`, padL - 5, padT + 4);
+                tCtx.fillText(`0°`, padL - 5, midY);
+                tCtx.fillText(`-${maxDeg}°`, padL - 5, h - padB - 4);
+
+                if (state.history.length < 2) return;
+
+                const tMax = Math.max(state.maxHistoryTime, state.time);
+                const tMin = Math.max(0, tMax - state.maxHistoryTime);
+
+                const mapX = (t) => padL + ((t - tMin) / state.maxHistoryTime) * plotW;
+                const mapY = (thRad) => midY - ((thRad * RAD2DEG) / maxDeg) * (plotH * 0.46);
+
+                // Curva Lineal (Naranja discontinua)
+                tCtx.save();
+                tCtx.beginPath();
+                tCtx.setLineDash([4, 3]);
+                state.history.forEach((pt, idx) => {
+                    const x = mapX(pt.t);
+                    const y = mapY(pt.thL);
+                    if (idx === 0) tCtx.moveTo(x, y);
+                    else tCtx.lineTo(x, y);
+                });
+                tCtx.strokeStyle = COLOR_LINEAR;
+                tCtx.lineWidth = 1.8;
+                tCtx.stroke();
+                tCtx.restore();
+
+                // Curva Exacta (Cian sólida)
+                tCtx.save();
+                tCtx.beginPath();
+                state.history.forEach((pt, idx) => {
+                    const x = mapX(pt.t);
+                    const y = mapY(pt.thR);
+                    if (idx === 0) tCtx.moveTo(x, y);
+                    else tCtx.lineTo(x, y);
+                });
+                tCtx.strokeStyle = COLOR_REAL;
+                tCtx.lineWidth = 2.2;
+                tCtx.stroke();
+                tCtx.restore();
+
+                // Puntos actuales al frente
+                const last = state.history[state.history.length - 1];
+                const lx = mapX(last.t);
+                tCtx.fillStyle = COLOR_LINEAR;
+                tCtx.beginPath();
+                tCtx.arc(lx, mapY(last.thL), 3, 0, Math.PI * 2);
+                tCtx.fill();
+
+                tCtx.fillStyle = COLOR_REAL;
+                tCtx.beginPath();
+                tCtx.arc(lx, mapY(last.thR), 3.5, 0, Math.PI * 2);
+                tCtx.fill();
+            }
+
+            /**
+             * Gráfica 2: Diagrama de Fase (θ, dθ/dt)
+             */
+            function renderPhaseChart() {
+                const rect = phaseCanvas.parentElement.getBoundingClientRect();
+                const w = rect.width;
+                const h = rect.height;
+                phCtx.clearRect(0, 0, w, h);
+
+                const padL = 36, padR = 14, padT = 14, padB = 20;
+                const plotW = w - padL - padR;
+                const plotH = h - padT - padB;
+                const cx = padL + plotW * 0.5;
+                const cy = padT + plotH * 0.5;
+
+                // Ejes centrados en (0, 0)
+                phCtx.strokeStyle = 'rgba(51, 65, 85, 0.5)';
+                phCtx.lineWidth = 1;
+                phCtx.beginPath();
+                phCtx.moveTo(padL, cy);
+                phCtx.lineTo(w - padR, cy);
+                phCtx.moveTo(cx, padT);
+                phCtx.lineTo(cx, h - padB);
+                phCtx.stroke();
+
+                // Escalas máximas teóricas
+                const th0Rad = Math.max(5 * DEG2RAD, Math.abs(state.theta0Deg) * DEG2RAD);
+                const maxDeg = th0Rad * RAD2DEG * 1.15;
+                const maxOmegaDeg = (th0Rad * Math.sqrt(state.g / state.L)) * RAD2DEG * 1.15;
+
+                // Etiquetas de ejes
+                phCtx.fillStyle = '#64748b';
+                phCtx.font = '9px "JetBrains Mono", monospace';
+                phCtx.textAlign = 'right';
+                phCtx.fillText('ω', cx - 4, padT + 6);
+                phCtx.textAlign = 'right';
+                phCtx.fillText('θ', w - padR - 2, cy - 4);
+
+                const mapX = (thRad) => cx + ((thRad * RAD2DEG) / maxDeg) * (plotW * 0.46);
+                const mapY = (omRad) => cy - ((omRad * RAD2DEG) / maxOmegaDeg) * (plotH * 0.44);
+
+                // Elipse teórica ideal del oscilador armónico (referencia completa)
+                phCtx.save();
+                phCtx.beginPath();
+                phCtx.setLineDash([3, 3]);
+                const rx = ((Math.abs(state.theta0Deg)) / maxDeg) * (plotW * 0.46);
+                const ry = (((Math.abs(state.theta0Deg) * DEG2RAD * Math.sqrt(state.g / state.L)) * RAD2DEG) / maxOmegaDeg) * (plotH * 0.44);
+                phCtx.ellipse(cx, cy, Math.max(0, rx), Math.max(0, ry), 0, 0, Math.PI * 2);
+                phCtx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
+                phCtx.lineWidth = 1.2;
+                phCtx.stroke();
+                phCtx.restore();
+
+                if (state.history.length < 2) return;
+
+                // Trayectoria de fase Real (Cian) - muestra el achatamiento vertical respecto a la elipse
+                phCtx.save();
+                phCtx.beginPath();
+                state.history.forEach((pt, idx) => {
+                    const x = mapX(pt.thR);
+                    const y = mapY(pt.omR);
+                    if (idx === 0) phCtx.moveTo(x, y);
+                    else phCtx.lineTo(x, y);
+                });
+                phCtx.strokeStyle = COLOR_REAL;
+                phCtx.lineWidth = 2;
+                phCtx.stroke();
+                phCtx.restore();
+
+                // Puntos instantáneos en el espacio de fase
+                const last = state.history[state.history.length - 1];
+                phCtx.fillStyle = COLOR_LINEAR;
+                phCtx.beginPath();
+                phCtx.arc(mapX(last.thL), mapY(last.omL), 3.2, 0, Math.PI * 2);
+                phCtx.fill();
+
+                phCtx.fillStyle = COLOR_REAL;
+                phCtx.beginPath();
+                phCtx.arc(mapX(last.thR), mapY(last.omR), 4, 0, Math.PI * 2);
+                phCtx.fill();
+            }
+
+            function renderAll() {
+                renderPendulum();
+                renderTimeChart();
+                renderPhaseChart();
+            }
+
+            // --- BUCLE PRINCIPAL DE ANIMACIÓN ---
+            let lastTimestamp = null;
+
+            function animationLoop(timestamp) {
+                if (lastTimestamp === null) lastTimestamp = timestamp;
+                const rawDt = (timestamp - lastTimestamp) / 1000.0;
+                lastTimestamp = timestamp;
+
+                // Evitar saltos bruscos si se cambia de pestaña
+                const clampedDt = Math.min(rawDt, 0.05);
+
+                if (state.isRunning && !state.isDragging) {
+                    advancePhysics(clampedDt * state.timeScale);
+                    updateLiveTelemetry();
+                }
+
+                renderAll();
+                requestAnimationFrame(animationLoop);
+            }
+
+            // --- EVENTOS DE CONTROLES E INTERACCIÓN ---
+
+            function setInitialAngle(deg) {
+                const clamped = Math.max(0, Math.min(50, isNaN(deg) ? 0 : deg));
+                state.theta0Deg = clamped;
+                sliderAngle.value = clamped;
+                inputAngle.value = clamped;
+                resetSimulation();
+            }
+
+            sliderAngle.addEventListener('input', (e) => setInitialAngle(parseFloat(e.target.value)));
+            inputAngle.addEventListener('change', (e) => setInitialAngle(parseFloat(e.target.value)));
+
+            document.querySelectorAll('.preset-angle-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    setInitialAngle(parseFloat(btn.dataset.angle));
+                });
+            });
+
+            sliderLength.addEventListener('input', (e) => {
+                state.L = parseFloat(e.target.value);
+                valLength.textContent = `${state.L.toFixed(2)} m`;
+                resetSimulation();
+            });
+
+            sliderGravity.addEventListener('input', (e) => {
+                state.g = parseFloat(e.target.value);
+                valGravity.textContent = `${state.g.toFixed(2)} m/s²`;
+                updateGravityPresetStyles();
+                resetSimulation();
+            });
+
+            function updateGravityPresetStyles() {
+                document.querySelectorAll('.preset-g-btn').forEach(btn => {
+                    const gVal = parseFloat(btn.dataset.g);
+                    if (Math.abs(gVal - state.g) < 0.05) {
+                        btn.className = 'preset-g-btn flex-1 py-1 px-1.5 rounded bg-sky-500/20 border border-sky-400/60 text-[10px] font-mono text-sky-300 font-semibold transition';
+                    } else {
+                        btn.className = 'preset-g-btn flex-1 py-1 px-1.5 rounded bg-lab-850 hover:bg-lab-800 border border-lab-700/80 text-[10px] font-mono text-slate-400 hover:text-slate-200 transition';
+                    }
+                });
+            }
+
+            document.querySelectorAll('.preset-g-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.g = parseFloat(btn.dataset.g);
+                    sliderGravity.value = state.g;
+                    valGravity.textContent = `${state.g.toFixed(2)} m/s²`;
+                    updateGravityPresetStyles();
+                    resetSimulation();
+                });
+            });
+
+            // Botones de reproducción
+            btnPlayPause.addEventListener('click', () => {
+                state.isRunning = !state.isRunning;
+                syncPlayPauseUI();
+            });
+
+            btnReset.addEventListener('click', () => {
+                resetSimulation();
+            });
+
+            btnSlowmo.addEventListener('click', () => {
+                state.timeScale = state.timeScale === 1.0 ? 0.25 : 1.0;
+                if (state.timeScale < 1.0) {
+                    btnSlowmo.className = 'py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-400/60 text-amber-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition';
+                } else {
+                    btnSlowmo.className = 'py-2 px-3 rounded-xl bg-lab-800 hover:bg-lab-700 text-slate-300 border border-lab-700 font-medium text-xs flex items-center justify-center gap-1.5 transition';
+                }
+                syncPlayPauseUI();
+            });
+
+            btnStep.addEventListener('click', () => {
+                if (state.isRunning) {
+                    state.isRunning = false;
+                    syncPlayPauseUI();
+                }
+                advancePhysics(0.02);
+                updateLiveTelemetry();
+                renderAll();
+            });
+
+            document.getElementById('chk-trails').addEventListener('change', (e) => {
+                state.showTrails = e.target.checked;
+                renderAll();
+            });
+
+            document.getElementById('chk-vectors').addEventListener('change', (e) => {
+                state.showVectors = e.target.checked;
+                renderAll();
+            });
+
+            // --- INTERACCIÓN DIRECTA CON EL PÉNDULO (ARRASTRAR MASA) ---
+            function handlePointerAngle(clientX, clientY) {
+                const rect = pendulumCanvas.getBoundingClientRect();
+                const x = clientX - rect.left;
+                const y = clientY - rect.top;
+                const { pivotX, pivotY } = getPendulumGeometry(rect.width, rect.height);
+
+                const dx = x - pivotX;
+                const dy = Math.max(10, y - pivotY);
+                let angleDeg = Math.atan2(dx, dy) * RAD2DEG;
+                // Restringir al rango permitido de 0° a 50°
+                angleDeg = Math.max(0, Math.min(50, Math.round(angleDeg * 2) / 2));
+                setInitialAngle(angleDeg);
+            }
+
+            pendulumCanvas.addEventListener('mousedown', (e) => {
+                state.isDragging = true;
+                handlePointerAngle(e.clientX, e.clientY);
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!state.isDragging) return;
+                handlePointerAngle(e.clientX, e.clientY);
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (state.isDragging) {
+                    state.isDragging = false;
+                }
+            });
+
+            // Soporte táctil
+            pendulumCanvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) {
+                    state.isDragging = true;
+                    handlePointerAngle(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchmove', (e) => {
+                if (!state.isDragging || e.touches.length === 0) return;
+                handlePointerAngle(e.touches[0].clientX, e.touches[0].clientY);
+            }, { passive: true });
+
+            window.addEventListener('touchend', () => {
+                state.isDragging = false;
+            });
+
+            // --- INICIALIZACIÓN ---
+            resizeCanvases();
+            resetSimulation();
+            syncPlayPauseUI();
+            requestAnimationFrame(animationLoop);
+        });
+    </script>
+</body>
+</html>
